@@ -1,0 +1,15 @@
+{
+  "titulo": "Título completo del documento",
+  "tipo_documento": "Manual",
+  "autor": "Organización o persona que lo publica",
+  "fecha_publicacion": "2024-05",
+  "offset_pagina_impresa": 1,
+  "_comentario_offset": "pagina_pdfplumber (0-based) = pagina_impresa_inicio - offset_pagina_impresa. Verificado contra el pie de página en las págs. impresas X, Y, Z.",
+  "_comentario_metadatos": "Los campos de arriba (salvo titulo) son opcionales: alimentan los campos \"auto\" de metadatos.json. Qué campos aparecen en el front-matter lo decide metadatos.json, no este archivo.",
+  "secciones": [
+    {"nivel": 1, "numero": null, "titulo": "Introducción", "pagina_impresa_inicio": 5},
+    {"nivel": 1, "numero": "1", "titulo": "Primer capítulo", "pagina_impresa_inicio": 7},
+    {"nivel": 1, "numero": "2", "titulo": "Segundo capítulo", "pagina_impresa_inicio": 15},
+    {"nivel": 1, "numero": null, "titulo": "Anexos", "pagina_impresa_inicio": 30}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "repositorio": "hourus-skills",
+  "descripcion": "Skills para agentes de IA del equipo Hourus. Ver AGENTS.md para instalar.",
+  "skills": [
+    {
+      "nombre": "pdf-a-markdown",
+      "version": "1.4.0",
+      "ruta": "pdf-a-markdown",
+      "resumen": "Convierte PDF (normas, guías, manuales, informes, escaneos) a Markdown estructurado y listo para RAG, con metadatos definidos por el usuario y perfiles de fuente opcionales. Agnóstica a país, portal y organización.",
+      "dependencias_python": "pdf-a-markdown/requirements.txt",
+      "dependencias_sistema_opcionales": {
+        "ocr": "brew install tesseract tesseract-lang ghostscript qpdf unpaper && pip install ocrmypdf"
+      },
+      "verificacion": "python3 pdf-a-markdown/scripts/metadatos.py perfiles",
+      "origen": "pipeline de conversión de normas y guías técnicas para RAG"
+    }
+  ]
+}

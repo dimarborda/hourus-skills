@@ -1,0 +1,16 @@
+{
+  "perfil": "general",
+  "campos": {
+    "titulo": "auto",
+    "tipo_documento": "Manual de procesos",
+    "cliente": "Nombre del cliente",
+    "area": "Operaciones",
+    "confidencialidad": "interno",
+    "version": null,
+    "etiquetas": ["procesos", "calidad"],
+    "fuente": false
+  },
+  "documentos": {
+    "manual-operaciones-2024.pdf": {"version": "3.1"}
+  }
+}
