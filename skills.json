@@ -13,6 +13,18 @@
       },
       "verificacion": "python3 pdf-a-markdown/scripts/metadatos.py perfiles",
       "origen": "pipeline de conversión de normas y guías técnicas para RAG"
+    },
+    {
+      "nombre": "diseno-express-de-apps",
+      "version": "1.0.0",
+      "ruta": "diseno-express-de-apps",
+      "resumen": "Diseña y construye una app web copiando conceptos probados del mercado: cinco decisiones con referente, análisis del referente, especificación por etapas y construcción con Next.js + Supabase + Vercel, para usuarios con poco conocimiento de desarrollo.",
+      "dependencias_python": null,
+      "dependencias_sistema_opcionales": {
+        "construccion": "Node >= 20, git, gh, Vercel CLI (npm i -g vercel) y Supabase CLI (brew install supabase/tap/supabase o npx supabase)"
+      },
+      "verificacion": "python3 diseno-express-de-apps/scripts/expres.py entorno",
+      "origen": "método de diseño de plataformas a partir de referentes de mercado"
     }
   ]
 }

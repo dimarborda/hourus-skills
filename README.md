@@ -37,6 +37,7 @@ Archivos del repositorio:
 | Skill | Para qué sirve | Origen | Estado |
 |---|---|---|---|
 | [`pdf-a-markdown`](pdf-a-markdown/SKILL.md) | Convertir PDF (normas, guías, manuales, informes, escaneos) a Markdown estructurado y listo para RAG: diagnóstico automático de la ruta, front-matter con metadatos que el agente propone sin frenar la conversión (perfiles `general`, `normativo`, `minimo` + campos propios), motor por artículos, guías a columnas con índice JSON generado automáticamente (marcadores, tabla de contenido o encabezado corrido), OCR, extracción de tablas, perfiles de fuente opcionales y checklist de calidad. Agnóstica a país, portal y organización. | Pipeline de conversión de normas y guías técnicas para RAG | ✅ v1.4 |
+| [`diseno-express-de-apps`](diseno-express-de-apps/SKILL.md) | Pasar de una idea a una aplicación web funcionando copiando conceptos ya probados en el mercado: cinco decisiones con referente (qué construir, diseño visual, modelo de negocio), análisis del referente desde información pública, especificación propia con casos de uso por etapas y construcción guiada con Next.js + Supabase + Vercel para personas con poco conocimiento de desarrollo. Plantillas y validador de documentos incluidos. | Método de diseño de plataformas a partir de referentes de mercado | ✅ v1.0 |
 
 <!-- Al agregar una skill nueva, añade una fila a esta tabla y una entrada en skills.json. -->
 
