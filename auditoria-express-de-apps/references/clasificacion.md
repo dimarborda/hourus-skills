@@ -91,12 +91,17 @@ Los `posible` no generan casos de uso salvo con `casos --incluir-posibles`.
 | `configuracion` | `next.config`, `vercel.json`, cabeceras, source maps | UC-SEC |
 | `despliegue` | Diferencias repo ↔ Vercel/Supabase, variables, protección de previews | UC-SEC |
 | `navegador` | Bundle, red, cookies, respuestas con datos de más | UC-SEC |
+| `abuso` | Límites de tasa, costos disparables, subidas sin tope | UC-SEC |
 | `proveedor` | Reglas y límites de Vercel, Supabase, pasarelas, IA | UC-SEC |
 | `dependencias` | `npm audit`, paquetes abandonados | UC-SEC |
 | `privacidad` | Datos personales, consentimiento, residencia | UC-SEC |
+| `cuentas` | 2FA, miembros, tokens, recuperación de cuentas de los proveedores | UC-SEC |
+| `agente` | Permisos, conectores MCP y automatizaciones del agente que construye | UC-SEC |
 | `metodologia` | Desviaciones del método diseno-express-de-apps | UC-CAL |
 | `buenas-practicas` | Calidad, errores, tipos, pruebas | UC-CAL |
 | `rendimiento` | Políticas lentas, consultas sin índice, bundle pesado | UC-CAL |
+| `operacion` | Copias y restauración, monitoreo, alertas, incidentes, dominio | UC-CAL |
+| `accesibilidad` | Nombres accesibles, contraste, teclado | UC-CAL |
 
 Con `alcance: metodo`, cualquier categoría va a `UC-MET` (mejora a la skill).
 

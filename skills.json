@@ -28,12 +28,14 @@
     },
     {
       "nombre": "auditoria-express-de-apps",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "ruta": "auditoria-express-de-apps",
-      "resumen": "Audita apps del método diseno-express-de-apps con equipos de agentes (código, despliegue con Vercel/Supabase CLI y navegador): secretos expuestos, RLS, autenticación, restricciones de proveedores; clasifica hallazgos, propone cambios, genera casos de endurecimiento y lecciones aprendidas por proyecto.",
+      "resumen": "Audita apps del método diseno-express-de-apps con cuatro equipos de agentes (código, despliegue con Vercel/Supabase CLI, navegador y cuentas/operación/agente): secretos expuestos (también en el historial de git), RLS, Realtime, abuso y costos, restricciones de proveedores; clasifica hallazgos, propone cambios, genera casos de endurecimiento, lecciones aprendidas por proyecto y pruebas pgTAP + CI para que se cumplan solas.",
       "dependencias_python": null,
       "dependencias_sistema_opcionales": {
-        "despliegue": "Vercel CLI (npm i -g vercel) y Supabase CLI (brew install supabase/tap/supabase o npx supabase), con sesión iniciada por el usuario"
+        "despliegue": "Vercel CLI (npm i -g vercel) y Supabase CLI (brew install supabase/tap/supabase o npx supabase), con sesión iniciada por el usuario",
+        "historial": "gitleaks o trufflehog (opcionales; confirman el barrido del historial de git)",
+        "pruebas_rls": "Docker para correr localmente `npx supabase test db` (en CI lo da GitHub Actions)"
       },
       "verificacion": "python3 auditoria-express-de-apps/scripts/auditar.py --help",
       "origen": "revisión de seguridad y despliegue de apps Next.js + Supabase + Vercel"

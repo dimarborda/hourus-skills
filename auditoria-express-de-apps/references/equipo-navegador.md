@@ -43,6 +43,15 @@ para el bundle local. Prefiere leer texto y red antes que capturas.
          scripts de CDNs desconocidos).
 4. **Consola**: errores, avisos de hidratación o de CSP que indiquen
    configuraciones a medias.
+5. **Realtime**: si hay WebSocket a `*.supabase.co/realtime`, revisa en
+   los mensajes que los canales de broadcast/presence se unen como
+   privados y que no llegan eventos de otras organizaciones.
+6. **Accesibilidad y rendimiento** (buenas prácticas): en 2-3 pantallas
+   del ciclo E1, revisa con la lectura de la página que imágenes y campos
+   tengan nombre accesible y que se pueda operar con teclado. Si el
+   usuario lo aprueba (descarga un paquete), Lighthouse da números:
+   `npx lighthouse URL --only-categories=accessibility,performance,best-practices --quiet --chrome-flags=--headless --output=json --output-path=docs/auditoria/FECHA/lighthouse.json`.
+   Puntaje < 80 en accesibilidad → `media`; LCP > 2,5 s en móvil → `media` (`rendimiento`).
 
 Fragmento de inspección (ejecútalo en la página con la herramienta de
 JavaScript del navegador; solo lee y **no imprime valores**):

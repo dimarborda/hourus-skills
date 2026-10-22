@@ -62,6 +62,8 @@ Verifica:
       `docs/auditoria/` ni datos de prueba reales.
 - [ ] Firewall/WAF: si hay endpoints costosos (IA, envío de correo,
       login), recomienda límite de tasa; regístralo como `media` si no hay.
+- [ ] **Spend Management** (planes de pago): tope o alerta de gasto
+      configurado. Sin tope, un abuso o un bucle se descubre en la factura.
 
 ## B2 · Supabase
 
@@ -129,6 +131,10 @@ Verifica:
 - [ ] Copias de seguridad / PITR acordes al plan y a la criticidad de los datos.
 - [ ] Región del proyecto acorde a la residencia de datos declarada en
       `04-conceptual.md`.
+- [ ] Costos: spend cap activo o alertas de uso en planes de pago; Storage
+      y egreso acordes a lo esperado (`inspect db table-stats` y el panel de uso).
+- [ ] Copias: confirma el tipo de copia del plan y si hay PITR; la prueba
+      de restauración la revisa el equipo D.
 - [ ] Plan gratuito: los proyectos inactivos se pausan; si la app ya tiene
       usuarios reales, es un hallazgo `proveedor` de severidad `media`.
 

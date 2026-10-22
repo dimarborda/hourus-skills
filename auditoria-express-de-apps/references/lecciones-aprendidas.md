@@ -28,6 +28,13 @@ todos, súbela aquí.
   de Supabase que producción y su URL termina en un chat o un correo.
 - **El secreto "borrado"**: se quitó del archivo, pero sigue en el
   historial de git y en despliegues anteriores. Sin rotación no hay arreglo.
+- **La cuenta, no el código.** Una app impecable cae igual si la cuenta de
+  Supabase del dueño no tiene 2FA o si un excolaborador sigue siendo
+  miembro del equipo de Vercel.
+- **El abuso llega por la factura.** Un endpoint de IA sin límite no filtra
+  datos, pero puede costar más que el resto del proyecto en una noche.
+- **El agente también es un actor.** Permisos permanentes para desplegar o
+  tokens escritos en `.mcp.json` son superficie de ataque como cualquier llave.
 
 ## Cómo auditar mejor
 
@@ -57,3 +64,6 @@ todos, súbela aquí.
   `auditar.py iniciar` añade la regla al `CLAUDE.md` del proyecto.
 - Una lección incumplida en la siguiente auditoría es más grave que el
   hallazgo original: el sistema de aprendizaje falló.
+- **Lo que se puede probar, se automatiza.** Una lección que cabe en una
+  prueba pgTAP o en el barrido de CI deja de depender de la memoria del
+  agente (`auditar.py automatizar`).

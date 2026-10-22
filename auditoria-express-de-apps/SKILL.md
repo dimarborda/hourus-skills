@@ -1,17 +1,17 @@
 ---
 name: auditoria-express-de-apps
-description: Audita una aplicación construida con el método diseno-express-de-apps (Next.js + Supabase + Vercel) con tres equipos de agentes en paralelo — uno lee el código (secretos, RLS, autenticación, entradas, metodología y buenas prácticas), otro verifica el despliegue con Vercel CLI y Supabase CLI en modo solo lectura, y otro recorre la interfaz y las peticiones del navegador — para encontrar secretos expuestos, accesos indebidos a datos y violaciones de las reglas de los proveedores de nube. Clasifica los hallazgos por severidad y confianza, propone los cambios, los convierte en casos de uso de endurecimiento para docs/05-casos-de-uso.md y alimenta las lecciones aprendidas del proyecto y del método. Úsala cuando alguien diga "audita mi app", "revisa la seguridad de la plataforma", "¿estoy exponiendo secretos?", "revisa el despliegue en Vercel/Supabase", "revisa las políticas RLS", "auditoría antes de salir a producción", "cierre de etapa", "buenas prácticas del proyecto" o "qué aprendimos de este proyecto", aunque no mencione agentes ni la palabra auditoría.
+description: Audita una aplicación construida con el método diseno-express-de-apps (Next.js + Supabase + Vercel) con cuatro equipos de agentes en paralelo — uno lee el código (secretos también en el historial de git, RLS, Realtime, Storage, autenticación, entradas, abuso y costos, lógica de negocio, metodología y buenas prácticas), otro verifica el despliegue con Vercel CLI y Supabase CLI en modo solo lectura, otro recorre la interfaz y las peticiones del navegador, y otro revisa cuentas (2FA, miembros, tokens), operación (copias, monitoreo, dominio, incidentes) y los permisos del propio agente — para encontrar secretos expuestos, accesos indebidos a datos y violaciones de las reglas de los proveedores de nube. Clasifica los hallazgos por severidad y confianza, propone los cambios, los convierte en casos de uso de endurecimiento para docs/05-casos-de-uso.md alimenta las lecciones aprendidas del proyecto y del método, y genera pruebas pgTAP de RLS, un workflow de GitHub Actions y Dependabot para que esas lecciones se cumplan solas. Úsala cuando alguien diga "audita mi app", "revisa la seguridad de la plataforma", "¿estoy exponiendo secretos?", "revisa el despliegue en Vercel/Supabase", "revisa las políticas RLS", "auditoría antes de salir a producción", "cierre de etapa", "configura CI de seguridad", "pruebas de RLS", "se filtró una llave", "buenas prácticas del proyecto" o "qué aprendimos de este proyecto", aunque no mencione agentes ni la palabra auditoría.
 ---
 
 # Auditoría express de apps
 
 Revisa una app hecha con [`diseno-express-de-apps`](../diseno-express-de-apps/SKILL.md)
-desde tres ángulos a la vez — **lo que dice el código, lo que está
-desplegado y lo que ve el navegador** — porque cada uno esconde fallas que
+desde cuatro ángulos a la vez — **lo que dice el código, lo que está
+desplegado, lo que ve el navegador y quién controla las cuentas** — porque cada uno esconde fallas que
 los otros no ven: una política RLS correcta en la migración que nunca se
 aplicó, una variable `NEXT_PUBLIC_` inocente en el código que en Vercel
 contiene la `service_role`, un endpoint protegido que devuelve columnas de
-más. Termina en cambios concretos, casos de uso y lecciones que el proyecto
+más, una cuenta de Supabase sin 2FA. Termina en cambios concretos, casos de uso y lecciones que el proyecto
 lee en cada sesión.
 
 `SKILL_DIR` = carpeta de este archivo. Script: `SKILL_DIR/scripts/auditar.py`
@@ -53,8 +53,8 @@ respuestas: (1) qué URL se revisan (local / preview / producción) y si hay
 cuentas de prueba; (2) si el CLI de Vercel y el de Supabase tienen sesión
 iniciada y el proyecto vinculado (si no, pídele que haga `vercel login` /
 `npx supabase login`; tú no escribes credenciales); (3) profundidad:
-**rápida** (3 agentes, uno por equipo) o **completa** (8 agentes, por
-defecto antes de producción). Si el repositorio es público, añade
+**rápida** (3 agentes: A, B y C; más D en la primera auditoría o si cambió
+el equipo) o **completa** (10 agentes, por defecto antes de producción). Si el repositorio es público, añade
 `docs/auditoria/` a `.gitignore`: los informes describen vulnerabilidades.
 
 Luego el barrido determinístico, que es la base de todos los equipos:
@@ -69,11 +69,16 @@ nombre de secreto, tablas sin RLS o con RLS en otra migración, políticas
 `using (true)`, `user_metadata` en políticas, funciones `security definer`
 sin `search_path`, `getSession()` en el servidor, Server Actions sin
 verificación de sesión visible, webhooks sin verificación de firma, source
-maps públicos y la estructura que exige el método. `--incluir-build` revisa
-también `.next/static` (lo que de verdad descarga el navegador; requiere
-`npm run build` previo). Escribe `hallazgos-estatico.json`.
+maps públicos, canales Realtime públicos, subidas sin validar, endpoints de
+IA o correo sin límite de tasa, permisos amplios del agente
+(`.claude/settings*.json`), tokens en `.mcp.json`, falta de CI, pruebas de
+RLS, Dependabot o procedimiento de incidentes, y la estructura del método.
+También busca secretos en el **contenido de todos los commits** (los que ya
+no están en los archivos actuales; `--sin-historial` lo omite).
+`--incluir-build` revisa `.next/static` (lo que de verdad descarga el
+navegador; requiere `npm run build` previo). Escribe `hallazgos-estatico.json`.
 
-## 1. Los tres equipos (en paralelo)
+## 1. Los cuatro equipos (en paralelo)
 
 Roster, prompts, contrato de salida y cómo lanzarlos en
 [references/orquestacion.md](references/orquestacion.md). Resumen:
@@ -83,12 +88,15 @@ Roster, prompts, contrato de salida y cómo lanzarlos en
 | **A · Código** | A1 secretos y configuración · A2 datos y RLS · A3 autenticación, servidor y entradas · A4 metodología y buenas prácticas | Repositorio, migraciones, `docs/` | [equipo-codigo.md](references/equipo-codigo.md) |
 | **B · Despliegue** | B1 Vercel CLI · B2 Supabase CLI | Lo que está publicado y configurado, y su diferencia con el repo | [equipo-despliegue.md](references/equipo-despliegue.md) |
 | **C · Navegador** | C1 interfaz, cabeceras y peticiones · C2 acceso a datos desde fuera | La URL real, la red, el bundle y la API de Supabase con la clave pública | [equipo-navegador.md](references/equipo-navegador.md) |
+| **D · Cuentas y operación** | D1 cuentas y accesos · D2 operación, continuidad y dominio (D3, seguridad del agente, lo hace D2) | 2FA, miembros, tokens, copias, monitoreo, DNS, incidentes, permisos y conectores del agente | [equipo-cuentas-operacion.md](references/equipo-cuentas-operacion.md) |
 
 - Lanza todos los agentes de la profundidad elegida **en un solo mensaje**
   para que corran a la vez. Cada uno recibe la ruta, la fecha de la
   auditoría, su lista de verificación y el resumen de `hallazgos-estatico.json`
   — no tu hipótesis — y escribe `docs/auditoria/FECHA/hallazgos-<agente>.json`.
-- Sin herramienta de subagentes, haz los equipos tú en orden A → B → C.
+- Sin herramienta de subagentes, haz los equipos tú en orden A → B → C → D.
+- El equipo D depende sobre todo de **respuestas del dueño** (paneles que
+  solo él ve): junta sus preguntas en un solo bloque de máximo 3, de sí/no.
 - Sin navegador, C1 se reduce a `curl -sI` y al barrido de `.next/static`;
   sin sesión en un CLI, el agente B lo reporta como hallazgo `info` y sigue.
 
@@ -157,7 +165,33 @@ a la vez, `npm run build`, preview). Al terminar cada caso, vuelve a
 ejecutar la prueba que lo encontró. Cierra con una **auditoría rápida** de
 re-verificación.
 
-## 5. Lecciones aprendidas (retroalimentación)
+## 5. Que las lecciones se cumplan solas (automatizar)
+
+```bash
+python3 SKILL_DIR/scripts/auditar.py automatizar --proyecto RUTA [--publicas t1,t2]   # vista previa
+python3 SKILL_DIR/scripts/auditar.py automatizar --proyecto RUTA --escribir
+```
+
+Una lección que solo vive en un documento depende de que alguien la lea.
+`automatizar` crea, sin sobrescribir lo que el usuario ya tenga:
+
+- `supabase/tests/00_auditoria_rls.test.sql` (pgTAP): todas las tablas con
+  RLS, `search_path` fijo, vistas con `security_invoker` — pruebas que
+  cubren también las tablas **futuras** — y, por tabla, que ni `anon` ni un
+  usuario ajeno vean filas (`--publicas` excluye catálogos públicos; se
+  recuerda entre ejecuciones). Las de acceso solo valen si `supabase/seed.sql`
+  inserta datos. Escribe tú, con el usuario, `01_aislamiento.test.sql`
+  (A no ve lo de B) desde la columna "qué NO puede hacer" de `docs/05`.
+- `.github/workflows/auditoria.yml`: en cada PR corre `escanear --ci` (falla
+  con críticos/altos no `aceptado`), `npm audit` y `supabase test db`.
+- `.github/dependabot.yml`, `docs/incidentes/llave-filtrada.md` (qué rotar
+  y en qué orden) y una copia del script en `scripts/auditoria/`.
+
+Propónlo al cerrar la primera auditoría y conviértelo en caso de uso si el
+usuario lo aprueba; empujar el workflow es un cambio como cualquier otro
+(rama, PR, aprobación del dueño).
+
+## 6. Lecciones aprendidas (retroalimentación)
 
 ```bash
 python3 SKILL_DIR/scripts/auditar.py lecciones --proyecto RUTA
@@ -177,7 +211,7 @@ esta skill o a la guía correspondiente de `diseno-express-de-apps`.
 `auditar.py estado --proyecto RUTA` resume el historial de auditorías y lo
 que sigue abierto (útil al retomar una sesión).
 
-## 6. Reporte al usuario
+## 7. Reporte al usuario
 
 Sin jerga y en este orden: lo urgente (críticos, qué rotar), cuántos
 hallazgos por severidad y qué cambió desde la auditoría anterior, qué se

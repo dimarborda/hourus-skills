@@ -8,10 +8,13 @@ leen y escriben su archivo de hallazgos.
 
 | Profundidad | Agentes | Cuándo |
 |---|---|---|
-| **Rápida** | A (código completo), B (Vercel + Supabase), C (navegador completo) | Cierre de cada etapa, re-verificación tras corregir |
-| **Completa** | A1, A2, A3, A4, B1, B2, C1, C2 | Antes de producción, antes de pagos o datos sensibles, tras un incidente |
+| **Rápida** | A (código completo), B (Vercel + Supabase), C (navegador completo); + D si es la primera auditoría o cambió el equipo | Cierre de cada etapa, re-verificación tras corregir |
+| **Completa** | A1, A2, A3, A4, B1, B2, C1, C2, D1, D2 | Antes de producción, antes de pagos o datos sensibles, tras un incidente |
 
-Más de 8 agentes rara vez encuentra más: duplica hallazgos y gasta tokens.
+Más de 10 agentes rara vez encuentra más: duplica hallazgos y gasta tokens.
+El equipo D pregunta más de lo que ejecuta: sus preguntas al dueño se
+juntan en **un solo bloque** (máximo 3, de sí/no) que haces tú, no el
+subagente; el subagente recibe las respuestas en el brief.
 Si el proyecto es pequeño (< 30 archivos de código), la rápida basta.
 
 ## Cómo lanzarlos
@@ -83,7 +86,7 @@ Usa un agente distinto del que lo encontró. Actualiza `confianza` y
 
 ## Presupuesto y orden
 
-- La auditoría completa toma 8 agentes + 1-3 verificadores. Díselo al
+- La auditoría completa toma 10 agentes + 1-3 verificadores. Díselo al
   usuario antes de lanzarla si su plan tiene límites de uso.
 - Si un crítico confirmado aparece temprano (p. ej. `service_role` en el
   bundle), avísale al usuario en ese momento: rotar la llave no espera al

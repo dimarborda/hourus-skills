@@ -1,0 +1,41 @@
+# Generado por auditoria-express-de-apps (auditar.py automatizar).
+# Corre el barrido de auditoría y las pruebas de RLS en cada PR y en main.
+name: Auditoría
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  barrido:
+    name: Barrido de seguridad
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # el barrido revisa también el historial de git
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Barrido estático (falla con críticos o altos no aceptados)
+        run: python3 scripts/auditoria/auditar.py escanear --proyecto . --ci
+      - name: Dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
+# --- rls ---
+
+  rls:
+    name: Pruebas de RLS (pgTAP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Base de datos local con migraciones y seed
+        run: supabase db start
+      - name: supabase test db
+        run: supabase test db

@@ -19,6 +19,11 @@ npx tsc --noEmit                               # tipos (si no tarda demasiado)
 - [ ] Ningún `.env*` versionado salvo `.env.example` (y este sin valores reales).
       Si alguno pasó por el historial (`git log --all -- .env.local`), es
       **crítico aunque ya no exista**: el valor hay que rotarlo.
+- [ ] **Historial completo**: `auditar.py escanear` revisa el contenido de
+      todos los commits (no solo los nombres de `.env`). Si están
+      instalados, confírmalo con `gitleaks git --redact` o
+      `trufflehog git file://. --only-verified` (no imprimen los valores con
+      esas opciones). Un secreto en un commit viejo es **crítico**: se rota.
 - [ ] `.gitignore` cubre `.env*`, `.vercel`, `supabase/.temp`, `supabase/.branches`.
 - [ ] Ninguna variable `NEXT_PUBLIC_*` con nombre o valor de secreto. Solo
       son públicas: URL de Supabase, clave `anon`/`publishable`, claves
@@ -65,6 +70,25 @@ política vale por lo que queda al final, no por la primera versión.
 - [ ] `bitacora` sin políticas de `update`/`delete`.
 - [ ] Storage: buckets privados por defecto; políticas sobre
       `storage.objects` que filtren por carpeta del usuario u organización.
+- [ ] **Subidas de archivos**: el servidor (o la política del bucket)
+      limita tipo MIME y tamaño; las rutas llevan el ID del usuario u
+      organización (`{org_id}/{uuid}.ext`), no nombres adivinables; las URL
+      firmadas vencen en minutos, no en días; nada de SVG/HTML subido por
+      usuarios servido desde el dominio propio.
+- [ ] **Realtime**: si la app usa canales (`.channel(`), los de broadcast y
+      presence son privados (`private: true`) y hay políticas sobre
+      `realtime.messages`; los cambios de tablas (`postgres_changes`)
+      respetan RLS, pero solo si la tabla lo tiene.
+- [ ] **Procesos internos**: `pg_cron`, `pg_net` y webhooks de base de
+      datos no llevan llaves escritas en el SQL (van en Supabase Vault);
+      `pg_net` solo llama URL fijas.
+- [ ] **Auth**: inicios de sesión anónimos desactivados si el modelo no
+      los pide; MFA disponible (y exigido) para administradores; cambiar el
+      correo exige confirmar el nuevo y el viejo; tokens de invitación con
+      vencimiento y de un solo uso.
+- [ ] **Pruebas de RLS**: existen `supabase/tests/*.sql` (pgTAP) y cubren
+      al menos "todas las tablas tienen RLS" y "A no ve lo de B". Si no
+      existen, `auditar.py automatizar` genera la base.
 - [ ] Vistas en `public`: con `security_invoker = true` (si no, saltan RLS).
 - [ ] Rendimiento: `(select auth.uid())` en vez de `auth.uid()` directo e
       índices en las columnas que usan las políticas.
@@ -93,8 +117,36 @@ política vale por lo que queda al final, no por la primera versión.
 - [ ] IA: la llave nunca en el cliente; límite de uso por usuario; la
       salida del modelo no se ejecuta ni se inserta como HTML sin sanitizar;
       un humano aprueba lo que mueve dinero o reputación (RG-02 del método).
+- [ ] **IA con herramientas**: si el modelo puede ejecutar acciones (tool
+      calling), cada herramienta valida permisos del usuario que pidió, no
+      del sistema; el contenido externo (documentos, correos, páginas) que
+      entra al prompt se trata como no confiable (inyección de
+      instrucciones); las acciones irreversibles piden confirmación humana.
 - [ ] Callback de Auth (`/auth/callback`): `redirectTo` restringido y URL
       permitidas en Supabase que no incluyan comodines amplios.
+
+### Abuso y costos
+
+- [ ] Endpoints costosos (IA, envío de correo/SMS, generación de PDF,
+      registro, recuperación de contraseña, búsquedas pesadas) con **límite
+      de tasa por usuario e IP** (p. ej. `@upstash/ratelimit`, reglas de
+      Vercel Firewall o una tabla de cuotas) y tope diario por usuario.
+- [ ] Nada que un visitante sin sesión pueda disparar en bucle y que
+      cueste dinero (correo de invitación, IA en una landing).
+- [ ] Respuestas paginadas con límite máximo; ninguna consulta sin `limit`
+      que crezca con los datos.
+- [ ] Subidas con tamaño máximo (cuidan Storage y el ancho de banda).
+
+### Lógica de negocio
+
+- [ ] Transiciones de estado validadas en el servidor (o en la base con
+      `check`/trigger): no se puede pasar de `borrador` a `pagado` desde el
+      cliente.
+- [ ] Operaciones de dinero o cupos **idempotentes** y sin condiciones de
+      carrera: dos clics rápidos no cobran dos veces ni dan dos cupos
+      (restricción `unique`, `select … for update` o función transaccional).
+- [ ] Montos, precios y descuentos se calculan en el servidor desde la base,
+      nunca se reciben del cliente.
 
 ## A4 · Metodología y buenas prácticas
 
@@ -117,6 +169,19 @@ Contrasta el proyecto con las reglas de `diseno-express-de-apps`:
 - [ ] Datos personales: si `04-conceptual.md` dice que hay datos sensibles
       o dinero de terceros, existen política de privacidad, consentimiento
       y pasarela autorizada (no custodia de fondos).
+- [ ] **Automatización**: hay un workflow de GitHub Actions que corre el
+      barrido en cada PR y las pruebas de RLS, y Dependabot activo
+      (`auditar.py automatizar` los crea). Sin CI, las lecciones dependen de
+      que alguien se acuerde.
+- [ ] **Privacidad visible**: aviso de cookies si hay analítica o
+      publicidad de terceros; política de privacidad y términos enlazados
+      desde el registro; opción de borrar la cuenta.
+- [ ] **Accesibilidad** (buenas prácticas, `buenas-practicas`): imágenes
+      con `alt`, campos con `label`, contraste suficiente, todo operable con
+      teclado. Muestrea 3 pantallas del ciclo E1.
+- [ ] **Rendimiento** (`rendimiento`): imágenes con `next/image`,
+      fuentes con `next/font`, sin bibliotecas pesadas en componentes
+      cliente que no las necesitan; consultas sin N+1.
 - [ ] `docs/06-lecciones-aprendidas.md`: las lecciones previas se cumplen.
       **Una lección incumplida es un hallazgo reincidente** — súbele la
       severidad un nivel.

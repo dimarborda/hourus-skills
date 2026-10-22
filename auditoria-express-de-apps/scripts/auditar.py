@@ -11,14 +11,18 @@ SUBCOMANDOS
         Crea docs/auditoria/FECHA/plan.md y docs/06-lecciones-aprendidas.md (si
         no existen) y añade al CLAUDE.md del proyecto la regla de leer las
         lecciones. NO sobrescribe nada.
-  escanear --proyecto RUTA [--fecha F] [--incluir-build]
+  escanear --proyecto RUTA [--fecha F] [--incluir-build] [--sin-historial] [--ci]
         Barrido estático: secretos por patrón (enmascarados), JWT service_role,
         .env versionados o no ignorados, NEXT_PUBLIC_ con nombre de secreto,
         tablas sin RLS, políticas abiertas, user_metadata en políticas,
         SECURITY DEFINER sin search_path, getSession() en servidor, Server
-        Actions sin verificación visible, webhooks sin firma, source maps y la
-        estructura del método. --incluir-build revisa también .next/static.
-        Escribe docs/auditoria/FECHA/hallazgos-estatico.json.
+        Actions sin verificación visible, webhooks sin firma, source maps, canales
+        Realtime públicos, subidas sin validar, endpoints costosos sin límite, permisos
+        del agente, tokens en .mcp.json, CI/pruebas/runbook ausentes y la estructura
+        del método; además, secretos en el CONTENIDO de todos los commits
+        (--sin-historial lo omite). --incluir-build revisa también .next/static.
+        Escribe docs/auditoria/FECHA/hallazgos-estatico.json. Con --ci no escribe
+        nada y sale con 1 si hay críticos/altos no marcados aceptado/descartado.
   consolidar --proyecto RUTA [--fecha F]
         Valida los hallazgos-*.json de los equipos contra el esquema, fusiona
         duplicados (misma huella o 'relacionados'), compara con la auditoría
@@ -31,6 +35,13 @@ SUBCOMANDOS
   lecciones --proyecto RUTA [--fecha F]
         Pasa el campo 'leccion' de los hallazgos no descartados a
         docs/06-lecciones-aprendidas.md, sin duplicar (las repetidas suman 'Veces').
+  automatizar --proyecto RUTA [--escribir] [--publicas t1,t2]
+        Para que las lecciones se cumplan solas: supabase/tests/00_auditoria_rls.test.sql
+        (pgTAP: RLS en todas las tablas, search_path, security_invoker y acceso de anon
+        y de un usuario ajeno por tabla), .github/workflows/auditoria.yml (barrido --ci,
+        npm audit y supabase test db), .github/dependabot.yml, docs/incidentes/
+        llave-filtrada.md y una copia de este script en scripts/auditoria/. Sin
+        --escribir solo muestra qué haría. Solo regenera la prueba y la copia del script.
   estado --proyecto RUTA
         Historial de auditorías, abiertos por severidad y lecciones registradas.
 
@@ -57,9 +68,9 @@ SEVERIDADES = ["critica", "alta", "media", "baja", "info"]
 CONFIANZAS = ["confirmado", "probable", "posible"]
 ESTADOS = ["abierto", "descartado", "aceptado", "corregido"]
 ALCANCES = ["proyecto", "metodo"]
-CATEGORIAS_SEC = ["secretos", "rls", "auth", "entradas", "configuracion", "despliegue",
-                  "navegador", "proveedor", "dependencias", "privacidad"]
-CATEGORIAS_CAL = ["metodologia", "buenas-practicas", "rendimiento"]
+CATEGORIAS_SEC = ["secretos", "rls", "auth", "entradas", "abuso", "configuracion", "despliegue",
+                  "navegador", "proveedor", "dependencias", "privacidad", "cuentas", "agente"]
+CATEGORIAS_CAL = ["metodologia", "buenas-practicas", "rendimiento", "operacion", "accesibilidad"]
 CATEGORIAS = CATEGORIAS_SEC + CATEGORIAS_CAL
 FIBONACCI = {1, 2, 3, 5, 8, 13}
 ICONO = {"critica": "🟥", "alta": "🟧", "media": "🟨", "baja": "🟩", "info": "⬜"}
@@ -338,6 +349,87 @@ REGLAS = {
         propuesta="Listar URL exactas (producción, localhost y, si hace falta, el patrón del equipo en Vercel).",
         leccion="Las URL de redirección de Auth son exactas, sin comodines amplios.",
         esfuerzo=1, referencia="OWASP A07:2021"),
+    "SEC-HISTORIAL-CONTENIDO": dict(
+        severidad="critica", confianza="probable", categoria="secretos",
+        titulo="Secreto en un commit anterior (ya no está en los archivos actuales)",
+        impacto="Cualquiera con acceso al repositorio lo recupera del historial de git.",
+        propuesta="ROTAR la llave. Si ya se rotó, marcar el hallazgo como 'aceptado' con la fecha de rotación; reescribir el historial es opcional.",
+        leccion="Toda llave que pasó por git se rota, aunque el archivo ya no exista.",
+        esfuerzo=2, referencia="OWASP A02:2021"),
+    "RLS-REALTIME": dict(
+        severidad="media", confianza="posible", categoria="rls",
+        titulo="Canal de Realtime posiblemente público",
+        impacto="Los mensajes de broadcast/presence de un canal no privado los recibe cualquiera que conozca su nombre.",
+        propuesta="Crear el canal con { config: { private: true } } y políticas sobre realtime.messages por organización.",
+        leccion="Los canales de Realtime son privados y tienen políticas sobre realtime.messages.",
+        esfuerzo=2, referencia="OWASP A01:2021"),
+    "RLS-BUCKET-SIN-LIMITES": dict(
+        severidad="baja", confianza="posible", categoria="abuso",
+        titulo="Bucket creado sin límite de tamaño ni tipos de archivo",
+        impacto="Se pueden subir archivos enormes o ejecutables (costo de Storage y riesgo para quien los descarga).",
+        propuesta="Definir file_size_limit y allowed_mime_types en el bucket.",
+        leccion="Todo bucket define file_size_limit y allowed_mime_types.",
+        esfuerzo=1, referencia="OWASP A04:2021"),
+    "ENT-SUBIDA-SIN-VALIDAR": dict(
+        severidad="baja", confianza="posible", categoria="entradas",
+        titulo="Subida de archivos desde el cliente sin validación visible de tipo o tamaño",
+        impacto="Archivos no esperados llegan a Storage; si se sirven desde el dominio propio, posible XSS.",
+        propuesta="Validar tipo y tamaño antes de subir y, sobre todo, en el bucket (allowed_mime_types, file_size_limit); rutas {org_id}/{uuid}.",
+        leccion="Todo bucket define file_size_limit y allowed_mime_types.",
+        esfuerzo=1, referencia="OWASP A04:2021"),
+    "ABU-SIN-LIMITE": dict(
+        severidad="media", confianza="posible", categoria="abuso",
+        titulo="Endpoint costoso (IA o correo) sin límite de tasa visible",
+        impacto="Un usuario o un bot puede llamarlo en bucle y disparar la factura del proveedor.",
+        propuesta="Límite por usuario e IP (p. ej. @upstash/ratelimit o una tabla de cuotas) y tope diario; alerta de gasto en el proveedor.",
+        leccion="Todo endpoint que cuesta dinero tiene límite de tasa por usuario y tope diario.",
+        esfuerzo=2, referencia="OWASP A04:2021"),
+    "AGT-PERMISOS": dict(
+        severidad="media", confianza="probable", categoria="agente",
+        titulo="Permisos amplios del agente en .claude/settings",
+        impacto="El agente puede desplegar, borrar o empujar sin pedir confirmación.",
+        propuesta="Quitar comodines como Bash(*) y los permisos permanentes para comandos que despliegan, migran o empujan; dejar que pidan confirmación.",
+        leccion="El agente pide confirmación para todo lo que despliega, migra, borra o empuja.",
+        esfuerzo=1, referencia=""),
+    "AGT-MCP-TOKEN": dict(
+        severidad="alta", confianza="probable", categoria="agente",
+        titulo="Token escrito en la configuración de MCP",
+        impacto="El token queda en el repositorio y da acceso al servicio conectado.",
+        propuesta="Mover el valor a una variable de entorno (\"${NOMBRE}\") y rotar el token.",
+        leccion="La configuración de MCP referencia variables de entorno, nunca tokens escritos.",
+        esfuerzo=1, referencia="OWASP A02:2021"),
+    "MET-SIN-PRUEBAS-RLS": dict(
+        severidad="media", confianza="confirmado", categoria="metodologia",
+        titulo="No hay pruebas automáticas de RLS (supabase/tests)",
+        impacto="Una migración nueva puede abrir una tabla sin que nadie lo note hasta la próxima auditoría.",
+        propuesta="auditar.py automatizar --escribir genera supabase/tests/00_auditoria_rls.test.sql; añadir pruebas de aislamiento entre organizaciones.",
+        leccion="Las reglas de RLS se prueban con pgTAP (supabase test db) en cada PR.",
+        esfuerzo=3, referencia=""),
+    "MET-SIN-CI": dict(
+        severidad="baja", confianza="confirmado", categoria="metodologia",
+        titulo="No hay workflow de CI que ejecute el barrido de auditoría",
+        impacto="Las lecciones solo se cumplen si alguien se acuerda de revisarlas.",
+        propuesta="auditar.py automatizar --escribir crea .github/workflows/auditoria.yml.",
+        leccion="Cada PR corre el barrido de auditoría y las pruebas de RLS.",
+        esfuerzo=1, referencia=""),
+    "MET-SIN-DEPENDABOT": dict(
+        severidad="baja", confianza="confirmado", categoria="dependencias",
+        titulo="Dependabot no está configurado",
+        impacto="Las vulnerabilidades de dependencias se descubren tarde.",
+        propuesta="auditar.py automatizar --escribir crea .github/dependabot.yml.",
+        leccion="", esfuerzo=1, referencia="OWASP A06:2021"),
+    "OPE-SIN-RUNBOOK": dict(
+        severidad="baja", confianza="confirmado", categoria="operacion",
+        titulo="No hay procedimiento escrito para una llave filtrada",
+        impacto="En un incidente se pierde tiempo decidiendo qué rotar y en qué orden.",
+        propuesta="auditar.py automatizar --escribir crea docs/incidentes/llave-filtrada.md; completar los contactos.",
+        leccion="", esfuerzo=1, referencia=""),
+    "OPE-SIN-MONITOREO": dict(
+        severidad="baja", confianza="posible", categoria="operacion",
+        titulo="No se ve una herramienta de monitoreo de errores",
+        impacto="Los errores de producción se descubren cuando un usuario se queja.",
+        propuesta="Integrar Sentry (o equivalente) con alertas a una persona y sin datos personales en los eventos.",
+        leccion="", esfuerzo=2, referencia="OWASP A09:2021"),
     "MET-DOCS": dict(
         severidad="info", confianza="confirmado", categoria="metodologia",
         titulo="Faltan documentos del método en docs/",
@@ -400,6 +492,10 @@ def enmascarar(valor):
     if len(valor) <= 8:
         return "…" * 3 + f" (largo {len(valor)})"
     return f"{valor[:4]}…{valor[-2:]} (largo {len(valor)})"
+
+
+def _huella_valor(valor):
+    return hashlib.sha1(valor.encode("utf-8")).hexdigest()[:12]
 
 
 def limpiar_linea(linea):
@@ -520,11 +616,13 @@ def cmd_iniciar(args):
 
 # ------------------------------------------------------------------ escanear
 class Escaner:
-    def __init__(self, raiz, incluir_build):
+    def __init__(self, raiz, incluir_build=False, historial=True):
         self.raiz = raiz
         self.incluir_build = incluir_build
+        self.historial = historial
         self.hallazgos = []
         self.vistos = set()
+        self.valores = set()   # huellas de secretos ya vistos en los archivos actuales (nunca el valor)
 
     def agregar(self, regla, archivo=None, linea=None, extracto=None, clave=None, **cambios):
         rel = str(archivo.relative_to(self.raiz)) if isinstance(archivo, Path) else archivo
@@ -562,8 +660,9 @@ class Escaner:
             return None
 
     # -- secretos en contenido
-    def buscar_secretos(self, p, texto, en_bundle=False):
-        regla = "SEC-BUNDLE" if en_bundle else "SEC-PATRON"
+    @staticmethod
+    def _secretos_en(texto):
+        """[(nombre, match)] de secretos por patrón, sin URL de Postgres de ejemplo o locales."""
         for nombre, rx in PATRONES_SECRETO:
             for m in rx.finditer(texto):
                 if nombre.startswith("URL de Postgres"):
@@ -571,19 +670,54 @@ class Escaner:
                     if host in ("localhost", "127.0.0.1", "db") or RE_PLACEHOLDER.search(clave) \
                             or clave in ("postgres", "password", "contrasena"):
                         continue
-                ln = linea_de(texto, m.start())
-                self.agregar(regla, p, ln, limpiar_linea(texto.splitlines()[ln - 1])[:140],
-                             clave=f"{nombre}:{ln}", titulo=f"{REGLAS[regla]['titulo']}: {nombre}")
+                yield nombre, m
+
+    def buscar_secretos(self, p, texto, en_bundle=False):
+        regla = "SEC-BUNDLE" if en_bundle else "SEC-PATRON"
+        for nombre, m in self._secretos_en(texto):
+            self.valores.add(_huella_valor(m.group(0)))
+            ln = linea_de(texto, m.start())
+            self.agregar(regla, p, ln, limpiar_linea(texto.splitlines()[ln - 1])[:140],
+                         clave=f"{nombre}:{ln}", titulo=f"{REGLAS[regla]['titulo']}: {nombre}")
         for m in RE_JWT.finditer(texto):
             rol = rol_jwt(m.group(0))
             ln = linea_de(texto, m.start())
             extracto = limpiar_linea(texto.splitlines()[ln - 1]) if not en_bundle else enmascarar(m.group(0))
             if rol == "service_role":
+                self.valores.add(_huella_valor(m.group(0)))
                 self.agregar("SEC-BUNDLE" if en_bundle else "SEC-JWT-SERVICE", p, ln, extracto,
                              clave=f"jwt:{ln}", titulo="JWT con rol service_role" +
                              (" dentro del JavaScript del navegador" if en_bundle else " escrito en un archivo"))
             elif rol == "anon" and not en_bundle and p.suffix in EXT_CODIGO:
                 self.agregar("SEC-JWT-ANON", p, ln, extracto, clave=f"jwt:{ln}")
+
+    def revisar_historial(self):
+        """Busca secretos en el contenido de todos los commits; reporta los que ya no están en los archivos."""
+        if not (self.raiz / ".git").exists():
+            return
+        try:
+            r = subprocess.run(["git", "-C", str(self.raiz), "log", "--all", "-p", "--no-color", "-U0",
+                                "--format=commit %h"], capture_output=True, text=True, errors="replace", timeout=300)
+        except (OSError, subprocess.TimeoutExpired):
+            print("⚠️  No se pudo revisar el historial de git (tiempo agotado); usa gitleaks o trufflehog.")
+            return
+        commit = archivo = None
+        for linea in r.stdout.splitlines():
+            if linea.startswith("commit "):
+                commit = linea[7:].strip()
+            elif linea.startswith("+++ "):
+                archivo = linea[6:] if linea.startswith("+++ b/") else None
+            elif linea.startswith("+") and archivo and not archivo.startswith("docs/auditoria/") \
+                    and Path(archivo).name not in OMITIR_ARCHIVOS:
+                encontrados = [(n, m.group(0)) for n, m in self._secretos_en(linea)]
+                encontrados += [("JWT service_role", m.group(0)) for m in RE_JWT.finditer(linea)
+                                if rol_jwt(m.group(0)) == "service_role"]
+                for nombre, valor in encontrados:
+                    hv = _huella_valor(valor)
+                    if hv in self.valores:
+                        continue   # sigue en los archivos actuales: ya lo reporta SEC-PATRON
+                    self.agregar("SEC-HISTORIAL-CONTENIDO", archivo, None, f"commit {commit}: {enmascarar(valor)}",
+                                 clave=hv, titulo=f"{REGLAS['SEC-HISTORIAL-CONTENIDO']['titulo']}: {nombre}")
 
     def buscar_literales(self, p, texto):
         for m in RE_LITERAL.finditer(texto):
@@ -692,6 +826,8 @@ class Escaner:
             for m in re.finditer(r"(insert\s+into\s+storage\.buckets[^;]*;|update\s+storage\.buckets[^;]*;)", t, re.I):
                 if re.search(r"\btrue\b", m.group(0), re.I):
                     self.agregar("RLS-BUCKET-PUBLICO", p, linea_de(t, m.start()), " ".join(m.group(0).split())[:140])
+                if m.group(0).lower().startswith("insert") and "file_size_limit" not in m.group(0).lower():
+                    self.agregar("RLS-BUCKET-SIN-LIMITES", p, linea_de(t, m.start()), " ".join(m.group(0).split())[:140])
             for m in re.finditer(r"grant\s+[^;]*?\bto\s+(?:[\w, ]*\b)?anon\b[^;]*;", t, re.I):
                 self.agregar("RLS-GRANT-ANON", p, linea_de(t, m.start()), " ".join(m.group(0).split())[:140])
 
@@ -722,6 +858,16 @@ class Escaner:
                     and not es_ruta and "supabase/functions" not in rel:
                 ln, ex = primera(RE_USA_SECRETA.pattern)
                 self.agregar("SEC-SIN-SERVER-ONLY", p, ln, limpiar_linea(ex))
+
+        if ".channel(" in texto and not re.search(r"private\s*:\s*true", texto):
+            self.agregar("RLS-REALTIME", p, *primera(r"\.channel\("))
+        if directiva == "client" and ".upload(" in texto and \
+                not re.search(r"\.size\b|\.type\b|mime|maxSize|accept", texto, re.I):
+            self.agregar("ENT-SUBIDA-SIN-VALIDAR", p, *primera(r"\.upload\("))
+        if (p.stem == "route" or directiva == "server") and re.search(
+                r"generateText|streamText|generateObject|messages\.create|chat\.completions|emails\.send|sendEmail|resend\.", texto) \
+                and not re.search(r"ratelimit|rate_limit|rateLimit|limite|cuota|quota", texto, re.I):
+            self.agregar("ABU-SIN-LIMITE", p, None, rel)
 
         if directiva == "server" and re.search(r"export\s+(async\s+)?(function|const)", texto) \
                 and not RE_VERIFICA_SESION.search(texto):
@@ -802,6 +948,48 @@ class Escaner:
             self.agregar("MET-ESTRUCTURA", ".env.example", None, None, clave="envex",
                          titulo="No hay .env.example con los nombres de las variables")
 
+        # automatización y operación
+        if usa_supabase and not any((r / "supabase" / "tests").rglob("*.sql")):
+            self.agregar("MET-SIN-PRUEBAS-RLS", "supabase/tests")
+        if pkg:
+            flujos = list((r / ".github" / "workflows").glob("*.y*ml"))
+            if not any("auditar.py" in (self.leer(f) or "") for f in flujos):
+                self.agregar("MET-SIN-CI", ".github/workflows")
+            if not any((r / ".github" / n).exists() for n in ("dependabot.yml", "dependabot.yaml")):
+                self.agregar("MET-SIN-DEPENDABOT", ".github/dependabot.yml")
+            if not (r / "docs" / "incidentes" / "llave-filtrada.md").exists():
+                self.agregar("OPE-SIN-RUNBOOK", "docs/incidentes/llave-filtrada.md")
+            if not re.search(r"@sentry/|@highlight-run|@logtail|@axiomhq|@bugsnag|@datadog|@vercel/otel|posthog", pkg):
+                self.agregar("OPE-SIN-MONITOREO", "package.json")
+
+        # agente
+        for n in (".claude/settings.json", ".claude/settings.local.json"):
+            try:
+                cfg = json.loads(self.leer(r / n) or "{}") if (r / n).exists() else {}
+            except json.JSONDecodeError:
+                continue
+            permisos = cfg.get("permissions") or {}
+            riesgosos = [a for a in permisos.get("allow") or [] if isinstance(a, str) and (
+                a in ("Bash", "Bash(*)", "Bash(:*)") or re.search(
+                    r"vercel.*(--prod|deploy|promote|env (add|rm|pull))|supabase.*(db (push|reset)|migration repair|secrets set)"
+                    r"|git push|rm -rf", a))]
+            if permisos.get("defaultMode") == "bypassPermissions":
+                riesgosos.append("defaultMode: bypassPermissions")
+            if riesgosos:
+                self.agregar("AGT-PERMISOS", n, None, ", ".join(riesgosos)[:140], clave=n)
+        mcp = r / ".mcp.json"
+        if mcp.exists():
+            try:
+                servidores = (json.loads(self.leer(mcp) or "{}").get("mcpServers") or {})
+            except json.JSONDecodeError:
+                servidores = {}
+            for nombre, s in servidores.items():
+                pares = list((s.get("env") or {}).items()) + list((s.get("headers") or {}).items())
+                for k, v in pares:
+                    if isinstance(v, str) and v and "${" not in v and \
+                            re.search(r"KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION", k.upper()):
+                        self.agregar("AGT-MCP-TOKEN", mcp, None, f"{nombre}.{k} = {enmascarar(v)}", clave=f"{nombre}.{k}")
+
     def correr(self):
         codigo, salida = git(self.raiz, "ls-files")
         versionados = set(salida.split("\n")) - {""} if codigo == 0 else set()
@@ -831,6 +1019,8 @@ class Escaner:
                 self.revisar_codigo(p, texto)
         self.revisar_sql(sql)
         self.revisar_config(versionados)
+        if self.historial:
+            self.revisar_historial()
         if self.incluir_build:
             static = self.raiz / ".next" / "static"
             if not static.exists():
@@ -849,9 +1039,30 @@ class Escaner:
         return self.hallazgos
 
 
+def _aceptados(raiz):
+    """Huellas marcadas aceptado/descartado en la última auditoría consolidada."""
+    base = raiz / "docs" / "auditoria"
+    for d in sorted(base.glob("????-??-??"), reverse=True) if base.exists() else []:
+        if (d / "hallazgos.json").exists():
+            return {x for h in leer_json(d / "hallazgos.json") if h.get("estado") in ("aceptado", "descartado")
+                    for x in h.get("huellas") or [h["huella"]]}
+    return set()
+
+
 def cmd_escanear(args):
     raiz = raiz_de(args)
-    hallazgos = Escaner(raiz, args.incluir_build).correr()
+    hallazgos = Escaner(raiz, args.incluir_build, historial=not args.sin_historial).correr()
+    if args.ci:
+        aceptados = _aceptados(raiz)
+        bloquean = [h for h in hallazgos if h["severidad"] in ("critica", "alta")
+                    and h["confianza"] != "posible" and huella(h) not in aceptados]
+        for h in bloquean:
+            ev = h["evidencia"]
+            print(f"{ICONO[h['severidad']]} {h['titulo']} — {ev['archivo']}" + (f":{ev['linea']}" if ev.get("linea") else ""))
+            print(f"   → {h['propuesta']}")
+        print(f"\n{len(bloquean)} hallazgos críticos/altos bloquean ({len(hallazgos)} en total). "
+              "Para aceptar un riesgo, márcalo 'aceptado' en la auditoría consolidada.")
+        return 1 if bloquean else 0
     d = dir_auditoria(raiz, args.fecha, crear=True)
     destino = d / "hallazgos-estatico.json"
     escribir_json(destino, hallazgos)
@@ -1280,6 +1491,114 @@ def cmd_lecciones(args):
     return 0
 
 
+# ------------------------------------------------------------------ automatizar
+def tablas_publicas(raiz):
+    """Tablas de public creadas por las migraciones (y no borradas), en orden de creación."""
+    creadas, borradas = [], set()
+    for p in sorted((raiz / "supabase" / "migrations").glob("*.sql")):
+        t = re.sub(r"--[^\n]*", "", re.sub(r"/\*[\s\S]*?\*/", "", p.read_text(encoding="utf-8")))
+        for m in re.finditer(r"(create|drop)\s+table\s+(?:if\s+(?:not\s+)?exists\s+)?(?:\"?(\w+)\"?\.)?\"?(\w+)\"?", t, re.I):
+            if (m.group(2) or "public").lower() != "public":
+                continue
+            nombre = m.group(3).lower()
+            if m.group(1).lower() == "create" and nombre not in creadas:
+                creadas.append(nombre)
+                borradas.discard(nombre)
+            elif m.group(1).lower() == "drop":
+                borradas.add(nombre)
+    return [x for x in creadas if x not in borradas]
+
+
+def pruebas_rls(tablas, publicas):
+    privadas = [x for x in tablas if x not in publicas]
+    o = ["-- Generado por auditoria-express-de-apps (auditar.py automatizar). Se ejecuta con: supabase test db",
+         "-- Pruebas estructurales (valen para tablas futuras) + pruebas de acceso por tabla.",
+         "-- Las de acceso solo significan algo si supabase/seed.sql inserta filas en cada tabla.",
+         f"-- Tablas tratadas como catálogo público (sin prueba de acceso): {', '.join(publicas) or 'ninguna'}.",
+         "-- Pruebas de aislamiento entre organizaciones (A no ve lo de B): escríbelas en 01_aislamiento.test.sql",
+         "-- a partir de la columna 'Qué NO puede hacer' de los actores en docs/05-casos-de-uso.md.",
+         "begin;", "create extension if not exists pgtap with schema extensions;",
+         f"select plan({3 + 2 * len(privadas)});", "",
+         "select is_empty($$ select c.relname::text from pg_class c join pg_namespace n on n.oid = c.relnamespace",
+         "  where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relrowsecurity $$,",
+         "  'Todas las tablas de public tienen RLS');",
+         "select is_empty($$ select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace",
+         "  where n.nspname = 'public' and p.prosecdef and not exists",
+         "  (select 1 from unnest(coalesce(p.proconfig, '{}')) cfg where cfg like 'search_path=%') $$,",
+         "  'Las funciones security definer tienen search_path fijo');",
+         "select is_empty($$ select c.relname::text from pg_class c join pg_namespace n on n.oid = c.relnamespace",
+         "  where n.nspname = 'public' and c.relkind = 'v'",
+         "  and not coalesce('security_invoker=true' = any(c.reloptions), false) $$,",
+         "  'Las vistas de public usan security_invoker');", ""]
+    if privadas:
+        o += ["-- true si el rol actual ve al menos una fila; un permiso denegado también cuenta como seguro.",
+              "create function pg_temp.ve_filas(tabla text) returns boolean language plpgsql as $f$",
+              "declare n int;", "begin",
+              "  execute format('select count(*) from (select 1 from %s limit 1) x', tabla) into n;",
+              "  return n > 0;",
+              "exception when insufficient_privilege then return false;", "end $f$;", "",
+              "-- Visitante sin sesión (clave anon)", "set local role anon;"]
+        o += [f"select ok(not pg_temp.ve_filas('public.{x}'), 'anon no ve filas de public.{x}');" for x in privadas]
+        o += ["reset role;", "",
+              "-- Usuario autenticado que no pertenece a ninguna organización",
+              "set local request.jwt.claims = '{\"sub\": \"00000000-0000-4000-8000-0000000000aa\", \"role\": \"authenticated\"}';",
+              "set local role authenticated;"]
+        o += [f"select ok(not pg_temp.ve_filas('public.{x}'), 'un usuario ajeno no ve filas de public.{x}');"
+              for x in privadas]
+        o += ["reset role;", ""]
+    o += ["select * from finish();", "rollback;", ""]
+    return "\n".join(o)
+
+
+def cmd_automatizar(args):
+    raiz = raiz_de(args)
+    prueba = raiz / "supabase" / "tests" / "00_auditoria_rls.test.sql"
+    lista = args.publicas
+    if lista is None and prueba.exists():   # recuerda el catálogo público de la generación anterior
+        m = re.search(r"catálogo público \(sin prueba de acceso\): (.*)\.$", prueba.read_text(encoding="utf-8"), re.M)
+        lista = "" if not m or m.group(1) == "ninguna" else m.group(1)
+    publicas = [x.strip().lower() for x in (lista or "").split(",") if x.strip()]
+    tablas = tablas_publicas(raiz)
+    flujo = (PLANTILLAS / "ci" / "auditoria.yml").read_text(encoding="utf-8")
+    con_supabase = (raiz / "supabase" / "config.toml").exists()
+    flujo = flujo.replace("# --- rls ---\n", "") if con_supabase else flujo.split("# --- rls ---")[0]
+    nombre = raiz.name
+    archivos = [
+        (raiz / ".github" / "workflows" / "auditoria.yml", flujo, False),
+        (raiz / ".github" / "dependabot.yml", (PLANTILLAS / "ci" / "dependabot.yml").read_text(encoding="utf-8"), False),
+        (raiz / "docs" / "incidentes" / "llave-filtrada.md", plantilla("llave-filtrada.md", {"{{PROYECTO}}": nombre}), False),
+        (raiz / "scripts" / "auditoria" / "auditar.py", Path(__file__).read_text(encoding="utf-8"), True),
+    ]
+    if con_supabase or tablas:
+        archivos.append((raiz / "supabase" / "tests" / "00_auditoria_rls.test.sql", pruebas_rls(tablas, publicas), True))
+    for destino, contenido, regenerable in archivos:
+        rel = destino.relative_to(raiz)
+        if destino.exists() and destino.read_text(encoding="utf-8") == contenido:
+            print(f"⏭️  al día: {rel}")
+            continue
+        if destino.exists() and not regenerable:
+            print(f"⏭️  omitido (ya existe, no se sobrescribe): {rel}")
+            continue
+        accion = "actualizar" if destino.exists() else "crear"
+        if not args.escribir:
+            print(f"📝 {accion}: {rel}")
+            continue
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(contenido, encoding="utf-8")
+        print(f"✅ {'creado' if accion == 'crear' else 'actualizado'}: {rel}")
+    if not con_supabase:
+        print("ℹ️  Sin supabase/config.toml: el workflow no incluye pruebas de RLS (corre `npx supabase init`).")
+    if tablas:
+        print(f"Tablas con prueba de acceso: {', '.join(x for x in tablas if x not in publicas) or 'ninguna'}"
+              + (f" · catálogo público: {', '.join(publicas)}" if publicas else ""))
+    if not args.escribir:
+        print("\nVista previa: repite con --escribir para crear los archivos.")
+    else:
+        print("\nSiguiente: completa los contactos de docs/incidentes/llave-filtrada.md, escribe las pruebas de "
+              "aislamiento entre organizaciones y prueba localmente con `npx supabase test db` (requiere Docker).")
+    return 0
+
+
 # ------------------------------------------------------------------ estado
 def cmd_estado(args):
     raiz = raiz_de(args)
@@ -1317,18 +1636,26 @@ def cmd_estado(args):
 def main():
     ap = argparse.ArgumentParser(description="Utilidades de la skill auditoria-express-de-apps.")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for nombre in ("iniciar", "escanear", "consolidar", "casos", "lecciones", "estado"):
+    for nombre in ("iniciar", "escanear", "consolidar", "casos", "lecciones", "automatizar", "estado"):
         p = sub.add_parser(nombre)
         p.add_argument("--proyecto", required=True)
-        if nombre != "estado":
+        if nombre not in ("estado", "automatizar"):
             p.add_argument("--fecha", help="AAAA-MM-DD (por defecto hoy o la última auditoría)")
     sub.choices["iniciar"].add_argument("--nombre")
     sub.choices["escanear"].add_argument("--incluir-build", action="store_true")
+    sub.choices["escanear"].add_argument("--sin-historial", action="store_true",
+                                         help="no revisar el contenido de los commits anteriores")
+    sub.choices["escanear"].add_argument("--ci", action="store_true",
+                                         help="no escribe archivos; sale con 1 si hay críticos o altos no aceptados")
     sub.choices["casos"].add_argument("--anexar", action="store_true")
+    sub.choices["automatizar"].add_argument("--escribir", action="store_true",
+                                            help="crear los archivos (sin esto, solo muestra qué haría)")
+    sub.choices["automatizar"].add_argument("--publicas", help="tablas de catálogo público, separadas por comas")
     sub.choices["casos"].add_argument("--incluir-posibles", action="store_true")
     args = ap.parse_args()
     return {"iniciar": cmd_iniciar, "escanear": cmd_escanear, "consolidar": cmd_consolidar,
-            "casos": cmd_casos, "lecciones": cmd_lecciones, "estado": cmd_estado}[args.cmd](args)
+            "casos": cmd_casos, "lecciones": cmd_lecciones, "automatizar": cmd_automatizar,
+            "estado": cmd_estado}[args.cmd](args)
 
 
 if __name__ == "__main__":
