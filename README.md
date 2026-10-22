@@ -42,6 +42,12 @@ Archivos del repositorio:
 
 <!-- Al agregar una skill nueva, añade una fila a esta tabla y una entrada en skills.json. -->
 
+### Guías para no técnicos
+
+| Documento | Para quién | Qué explica |
+|---|---|---|
+| [Guía de la Auditoría Express de Apps](documentos/Guia-Auditoria-Express-de-Apps.docx) (Word) | Dirección de TI, líderes de producto y dueños de proyectos | Qué revisa `auditoria-express-de-apps`, cómo leer sus resultados, qué decisiones le corresponden a la organización, cuándo auditar e indicadores para la dirección |
+
 ## Instalación
 
 ### Pídeselo a tu agente (recomendado)
