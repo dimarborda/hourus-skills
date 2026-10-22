@@ -141,7 +141,11 @@ Guía técnica completa (comandos, estructura, Supabase, Vercel, pagos) en
    implementa → prueba en local y en la URL de preview → marca 🔄/✅ en
    `05-casos-de-uso.md` → commit → despliegue.
 4. **Cierre de etapa**: muestra al usuario el criterio de salida funcionando
-   en la URL. Si lo acepta, pasa a la siguiente; si no, ajusta.
+   en la URL. Si lo acepta, corre una **auditoría rápida** con la skill
+   [`auditoria-express-de-apps`](../auditoria-express-de-apps/SKILL.md)
+   (completa antes de la primera salida a producción o de activar pagos) y
+   resuelve sus 🟥 antes del merge a `main`; si no lo acepta, ajusta.
+   Al empezar cada etapa, lee `docs/06-lecciones-aprendidas.md` si existe.
 5. `python3 SKILL_DIR/scripts/expres.py estado --proyecto RUTA` muestra el
    avance por etapa en cualquier momento (útil al retomar una sesión).
 

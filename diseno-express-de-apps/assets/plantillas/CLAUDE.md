@@ -16,6 +16,8 @@ Los documentos de `docs/` mandan sobre cualquier suposición:
 | `docs/03-diseno-visual.md` | Tokens, navegación e inventario de pantallas |
 | `docs/04-conceptual.md` | Concepto, ciclo, módulos, modelo de datos, fases |
 | `docs/05-casos-de-uso.md` | Backlog por etapas con estado ⬜/🔄/✅ |
+| `docs/06-lecciones-aprendidas.md` | Reglas aprendidas de las auditorías (se crea con la primera) |
+| `docs/auditoria/` | Informes de auditoría por fecha |
 
 Al terminar un caso de uso, actualiza su estado en `docs/05-casos-de-uso.md`.
 
@@ -33,3 +35,5 @@ Al terminar un caso de uso, actualiza su estado en `docs/05-casos-de-uso.md`.
 - `npm run build` sin errores antes de cada push.
 - Trabajo en ramas `etapa-eN`; producción (`main`) solo con aprobación del dueño.
 - Tablas en español, `snake_case`, plural.
+- Antes de cada etapa, lee `docs/06-lecciones-aprendidas.md` (si existe) y cumple sus
+  reglas. Al cerrar cada etapa, auditoría rápida con la skill `auditoria-express-de-apps`.

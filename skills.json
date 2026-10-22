@@ -16,7 +16,7 @@
     },
     {
       "nombre": "diseno-express-de-apps",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "ruta": "diseno-express-de-apps",
       "resumen": "Diseña y construye una app web copiando conceptos probados del mercado: cinco decisiones con referente, análisis del referente, especificación por etapas y construcción con Next.js + Supabase + Vercel, para usuarios con poco conocimiento de desarrollo.",
       "dependencias_python": null,
@@ -25,6 +25,18 @@
       },
       "verificacion": "python3 diseno-express-de-apps/scripts/expres.py entorno",
       "origen": "método de diseño de plataformas a partir de referentes de mercado"
+    },
+    {
+      "nombre": "auditoria-express-de-apps",
+      "version": "1.0.0",
+      "ruta": "auditoria-express-de-apps",
+      "resumen": "Audita apps del método diseno-express-de-apps con equipos de agentes (código, despliegue con Vercel/Supabase CLI y navegador): secretos expuestos, RLS, autenticación, restricciones de proveedores; clasifica hallazgos, propone cambios, genera casos de endurecimiento y lecciones aprendidas por proyecto.",
+      "dependencias_python": null,
+      "dependencias_sistema_opcionales": {
+        "despliegue": "Vercel CLI (npm i -g vercel) y Supabase CLI (brew install supabase/tap/supabase o npx supabase), con sesión iniciada por el usuario"
+      },
+      "verificacion": "python3 auditoria-express-de-apps/scripts/auditar.py --help",
+      "origen": "revisión de seguridad y despliegue de apps Next.js + Supabase + Vercel"
     }
   ]
 }

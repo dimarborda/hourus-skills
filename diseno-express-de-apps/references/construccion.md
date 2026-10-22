@@ -43,7 +43,11 @@ Luego:
 7. En Supabase → Authentication → URL Configuration: agrega la URL de
    Vercel y `http://localhost:3000` como redirecciones permitidas (error
    más común: el enlace del correo vuelve a localhost).
-8. Push a `main` → Vercel despliega. **Muestra la URL al usuario.**
+8. Cabeceras de seguridad en `next.config.ts` (`headers()`): CSP con
+   `frame-ancestors 'self'`, `X-Content-Type-Options: nosniff`,
+   `Referrer-Policy` y `Permissions-Policy`. `.gitignore` con `.env*`,
+   `!.env.example`, `.vercel` y `supabase/.temp`.
+9. Push a `main` → Vercel despliega. **Muestra la URL al usuario.**
 
 ## Base de datos: migraciones + RLS
 
